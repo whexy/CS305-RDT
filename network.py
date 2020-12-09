@@ -41,7 +41,8 @@ class Server(ThreadingUDPServer):
     def finish_request(self, request, client_address):
         data, socket = request
         lock.acquire()
-        if self.rate: time.sleep(len(data) / self.rate)
+        if self.rate:
+            time.sleep(len(data) / self.rate)
         self.buffer -= 1
         lock.release()
 
