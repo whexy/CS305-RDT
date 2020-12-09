@@ -1,3 +1,4 @@
+import heapq
 import time
 from threading import Thread
 
@@ -25,13 +26,7 @@ class RDTSocket(UnreliableSocket):
         self._send_to = None
         self._recv_from = None
         self.debug = debug
-        #############################################################################
-        # TODO: ADD YOUR NECESSARY ATTRIBUTES HERE
-        #############################################################################
         self.thread = RDTThread(self)
-        #############################################################################
-        #                             END OF YOUR CODE                              #
-        #############################################################################
 
     def accept(self) -> ('RDTSocket', (str, int)):
         """
@@ -43,13 +38,6 @@ class RDTSocket(UnreliableSocket):
         This function should be blocking. 
         """
         conn, addr = RDTSocket(self._rate), None
-        #############################################################################
-        # TODO: YOUR CODE HERE                                                      #
-        #############################################################################
-
-        #############################################################################
-        #                             END OF YOUR CODE                              #
-        #############################################################################
         return conn, addr
 
     def connect(self, address: (str, int)):
@@ -57,13 +45,7 @@ class RDTSocket(UnreliableSocket):
         Connect to a remote socket at address.
         Corresponds to the process of establishing a connection on the client side.
         """
-        #############################################################################
-        # TODO: YOUR CODE HERE                                                      #
-        #############################################################################
         raise NotImplementedError()
-        #############################################################################
-        #                             END OF YOUR CODE                              #
-        #############################################################################
 
     def recv(self, bufsize: int) -> bytes:
         """
@@ -75,15 +57,8 @@ class RDTSocket(UnreliableSocket):
         In other words, if someone else sends data to you from another address,
         it MUST NOT affect the data returned by this function.
         """
-        data = None
         assert self._recv_from, "Connection not established yet. Use recvfrom instead."
-        #############################################################################
-        # TODO: YOUR CODE HERE                                                      #
-        #############################################################################
-
-        #############################################################################
-        #                             END OF YOUR CODE                              #
-        #############################################################################
+        data = self.thread.scoop_data()
         return data
 
     def send(self, bytes: bytes):
@@ -92,26 +67,13 @@ class RDTSocket(UnreliableSocket):
         The socket must be connected to a remote socket, i.e. self._send_to must not be none.
         """
         assert self._send_to, "Connection not established yet. Use sendto instead."
-        #############################################################################
-        # TODO: YOUR CODE HERE                                                      #
-        #############################################################################
-        raise NotImplementedError()
-        #############################################################################
-        #                             END OF YOUR CODE                              #
-        #############################################################################
+        self.thread.pend_data(bytes)
 
     def close(self):
         """
         Finish the connection and release resources. For simplicity, assume that
         after a socket is closed, neither futher sends nor receives are allowed.
         """
-        #############################################################################
-        # TODO: YOUR CODE HERE                                                      #
-        #############################################################################
-
-        #############################################################################
-        #                             END OF YOUR CODE                              #
-        #############################################################################
         super().close()
 
     def set_send_to(self, send_to):
@@ -119,27 +81,6 @@ class RDTSocket(UnreliableSocket):
 
     def set_recv_from(self, recv_from):
         self._recv_from = recv_from
-
-
-"""
-You can define additional functions and classes to do thing such as packing/unpacking packets, or threading.
-
-"""
-
-
-class ReliableMessenger(object):
-    """
-    Reliable Messenger is an application layer that make use of the RDTSocket.
-    """
-
-    def __init__(self):
-        self.socket = RDTSocket()
-
-    def send_file(self, path):
-        with open(path, 'rb') as f:
-            raw = f.read()
-            data = [raw[i:i + 1000] for i in range(len(raw) // 1000)]
-            # send data
 
 
 class RDTThread(Thread):
@@ -152,9 +93,11 @@ class RDTThread(Thread):
         self.pkg_list = []
 
         self.send_buffer = {}
+        self.recv_buffer = {}
 
         self.max_ack = 0
         self.max_pkg = 0
+        self.next_scooped_pkg = 0
 
     def run(self):
         pass
@@ -189,20 +132,30 @@ class RDTThread(Thread):
             # Drop the packet! Do not trust the segment.
             pass
 
-        return data[:length]
+        self.recv_buffer[pkg_id] = data
 
-    def RDT_send(self):
+    def RDT_send(self, addr):
         ack_id = self.ack_list.pop(0)
         pkg_id = self.pkg_list.pop(0)
         data = self.send_buffer[pkg_id]
         length = len(data)
 
         data = self.makeChecksum(b'\x00'.join([ack_id, pkg_id, length, data]))
+        self.socket.sendto(data, addr)
 
-    def to_send(self, data: bytes):
+    def pend_data(self, data: bytes):
         self.send_buffer[self.max_pkg] = data
         self.pkg_list.append(self.max_pkg)
         self.max_pkg += 1
+
+    def scoop_data(self):
+        # if recv_buffer has element in order
+        if self.next_scooped_pkg in self.recv_buffer:
+            data = self.recv_buffer[self.next_scooped_pkg]
+        else:
+            # TODO: Should block here or raise an error
+            raise Exception("Pkt has not been recv-ed yet.")
+        self.next_scooped_pkg += 1
 
 
 class RDTTimeThread(Thread):
@@ -228,3 +181,14 @@ class RDTTimeThread(Thread):
                     # TODO: Queue require retransmit, set ack number
                     pass
             time.sleep(0.1)
+
+
+class PriorityQueue(object):
+    def __init__(self):
+        self.pq = []
+
+    def push(self, element):
+        heapq.heappush(self.pq, element)
+
+    def pop(self):
+        return heapq.heappop(self.pq)
