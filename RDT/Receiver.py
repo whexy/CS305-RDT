@@ -13,7 +13,7 @@ class Receiver(object):
 
     @staticmethod
     def parseNumber(id: bytes) -> int:
-        return int(''.join(list(map(lambda x: bin(x & 0x7F)[2:9], id))), 2)
+        return int(''.join(list(map(lambda x: bin(x & 0x7F)[2:9].zfill(7), id))), 2)
 
     @staticmethod
     def parsing(packet: bytes):
