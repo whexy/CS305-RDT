@@ -1,3 +1,4 @@
+import hashlib
 from typing import Dict
 
 from .Controller import to_ack, to_send
@@ -19,10 +20,13 @@ class Sender(object):
 
     @staticmethod
     def packing(ack_id: int, send_id: int, data: bytes) -> bytes:
-        checksum = 1
         length = len(data)
-        packet = [Sender.packNumber(ack_id), Sender.packNumber(send_id), Sender.packNumber(length), data]
-        return b'\x00'.join(packet)
+        pieces = [Sender.packNumber(ack_id), Sender.packNumber(send_id), Sender.packNumber(length), data]
+        product = b'\x00'.join(pieces)
+        md5 = hashlib.md5()
+        md5.update(product)
+        checksum = int(md5.hexdigest(), 16)
+        return Sender.packNumber(checksum) + b'\x00' + product
 
     def send(self):
         ack_id = to_ack.get()
