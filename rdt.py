@@ -89,8 +89,8 @@ class RDTThread(Thread):
         self.socket = socket
         self.time_thread = RDTTimeThread()
 
-        self.ack_list = []
-        self.pkg_list = []
+        self.ack_list = NetworkPriorityQueue()
+        self.pkg_list = NetworkPriorityQueue()
 
         self.send_buffer = {}
         self.recv_buffer = {}
@@ -123,10 +123,10 @@ class RDTThread(Thread):
             # 1). pending to ack next package if the package is not re-transmitted
             if pkg_id > self.max_ack:
                 self.max_ack += 1
-                self.ack_list.append(self.max_ack)
+                self.ack_list.push(self.max_ack)
 
             # 2). pending to send the ack-ed file
-            self.pkg_list.append(ack_id)
+            self.pkg_list.push(ack_id)
 
         else:
             # Drop the packet! Do not trust the segment.
@@ -135,8 +135,8 @@ class RDTThread(Thread):
         self.recv_buffer[pkg_id] = data
 
     def RDT_send(self, addr):
-        ack_id = self.ack_list.pop(0)
-        pkg_id = self.pkg_list.pop(0)
+        ack_id = self.ack_list.pop()
+        pkg_id = self.pkg_list.pop()
         data = self.send_buffer[pkg_id]
         length = len(data)
 
@@ -183,12 +183,15 @@ class RDTTimeThread(Thread):
             time.sleep(0.1)
 
 
-class PriorityQueue(object):
+class NetworkPriorityQueue(object):
+    """
+    一个最小堆。ack_id 和 pkg_id 越小，优先级越高。
+    """
     def __init__(self):
         self.pq = []
 
-    def push(self, element):
-        heapq.heappush(self.pq, element)
+    def push(self, priority):
+        heapq.heappush(self.pq, priority)
 
     def pop(self):
         return heapq.heappop(self.pq)
