@@ -6,7 +6,7 @@ from Sender import Sender
 
 
 class Dispatcher(object):
-    def __init__(self, socket, timeout=5):
+    def __init__(self, socket, timeout=10):
         to_ack = PriorityQueue()
         to_send = PriorityQueue()
         self.socket = socket
@@ -35,12 +35,12 @@ class Dispatcher(object):
                 # print(f"{id(self.socket)}: ACK列表长度为{self.to_ack.qsize()} ; SEND列表长度为{self.to_send.qsize()}")
                 pkt = self.receiver.get_receive_packet(pkg_id)
                 if time() - start_time > self.timeout:
+                    print(f"{id(self.socket)}: 包裹{pkg_id}超时，重新请求")
                     start_time = time()
                     self.to_ack.put(pkg_id)
-
-            print(f"{id(self.socket)}: 请求包裹{pkg_id}已经成功收到，内容是{pkt}")
             return pkt
 
+        start = time()
         ans = bytes(0)
 
         # 计算需要哪些包
@@ -50,6 +50,8 @@ class Dispatcher(object):
         # 阻塞拿包
         for goods in cart:
             ans += scoop_pkg(goods)
+
+        print(f"{id(self.socket)}: 请求已经成功收到，内容是{ans}，耗时{time() - start}")
         return ans
 
     def fill(self, data: bytes):

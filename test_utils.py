@@ -1,3 +1,4 @@
+import threading
 from unittest import TestCase
 
 from Receiver import Receiver
@@ -36,15 +37,21 @@ class TestPacking(TestCase):
 class TestRDTSocket(TestCase):
 
     def test_settle_up(self):
-        socket1 = RDTSocket(rate=10)
-        socket1.bind(("127.0.0.1", 1234))
-        socket1.set_send_to(("127.0.0.1", 2345))
-        socket1.set_recv_from(("127.0.0.1", 2345))
+        def start_socket1():
+            socket1 = RDTSocket(rate=10)
+            socket1.bind(("127.0.0.1", 1234))
+            socket1.set_send_to(("127.0.0.1", 2345))
+            socket1.set_recv_from(("127.0.0.1", 2345))
+            socket1.send("Hello World".encode("utf-8"))
+            # print(socket1.recv(1024))
 
-        socket2 = RDTSocket(rate=10)
-        socket2.bind(("127.0.0.1", 2345))
-        socket2.set_send_to(("127.0.0.1", 1234))
-        socket2.set_recv_from(("127.0.0.1", 1234))
+        def start_socket2():
+            socket2 = RDTSocket(rate=10)
+            socket2.bind(("127.0.0.1", 2345))
+            socket2.set_send_to(("127.0.0.1", 1234))
+            socket2.set_recv_from(("127.0.0.1", 1234))
+            # socket2.send("Accross the great wall and we can reach every corner of the world.".encode("utf-8"))
+            print(socket2.recv(3))
 
-        socket1.send("Hello World".encode("utf-8"))
-        print(socket2.recv(3))
+        threading.Thread(target=start_socket1).start()
+        threading.Thread(target=start_socket2).start()

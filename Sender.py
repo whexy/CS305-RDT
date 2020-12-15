@@ -32,12 +32,12 @@ class Sender(Thread):
 
     def send(self):
         try:
-            ack_id = self.to_ack.get_nowait()
+            ack_id = self.to_ack.get(timeout=0.5)
         except Empty:
             ack_id = 0
 
         try:
-            send_id = self.to_send.get_nowait()
+            send_id = self.to_send.get(timeout=0.5)
         except Empty:
             send_id = 0
 
@@ -47,7 +47,7 @@ class Sender(Thread):
         # FIXME: 调试
         print(f"{id(self.socket)}: Sender 正在打包 请求{ack_id}， 发送{send_id}")
 
-        print(f"{id(self.socket)}: 目前的send_buffer长这样：{self.send_buffer}")
+        # print(f"{id(self.socket)}: 目前的send_buffer长这样：{self.send_buffer}")
 
         if send_id > 0:
             if send_id in self.send_buffer:

@@ -1,8 +1,6 @@
 import hashlib
-import os
 from threading import Thread
 from typing import Dict
-
 
 
 class Receiver(Thread):
@@ -41,12 +39,18 @@ class Receiver(Thread):
         packet, addr = self.socket.recvfrom(1440)
         ack_id, send_id, data = self.parsing(packet)
 
-        print(f"{id(self.socket)}: Receiver 从 {addr} 收到一个包裹，内容是{data}")
-
         if ack_id is None:
+            # 坏包
             return
 
-        self.to_send.put(ack_id)
+        print(
+            f"{id(self.socket)}: Receiver 从 {addr} 收到包裹{send_id}，"
+            f"包裹内容是{data}，{f'对方顺便请求我方发送{ack_id}' if ack_id > 0 else '对方无请求'}。"
+        )
+
+        if ack_id > 0:
+            self.to_send.put(ack_id)
+
         self.recv_buffer[send_id] = data
         # TODO: 优化1: 对 send_id + 1 预请求
 
