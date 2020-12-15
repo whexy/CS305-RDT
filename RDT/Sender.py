@@ -1,7 +1,7 @@
 import hashlib
 from typing import Dict
 
-from .Controller import to_ack, to_send
+from Controller import to_ack, to_send
 
 
 class Sender(object):
@@ -32,6 +32,6 @@ class Sender(object):
         ack_id = to_ack.get()
         send_id = to_send.get()
         data = self.send_buffer[send_id]
-        # TODO: 这里有一个问题，如果 send_id 不在 buffer 里？
+        # TODO: 这里有一个问题，如果 send_id 不在 buffer 里？ 发空包？
         packet = self.packing(ack_id, send_id, data)
         self.socket.sendto(packet, self.addr)

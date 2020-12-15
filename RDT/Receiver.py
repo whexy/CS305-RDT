@@ -1,7 +1,7 @@
 import hashlib
 from typing import Dict
 
-from .Controller import to_send
+from Controller import to_send
 
 
 class Receiver(object):
@@ -18,11 +18,13 @@ class Receiver(object):
     @staticmethod
     def parsing(packet: bytes):
         try:
-            checksum, product = packet.split(b"\x00", 2)
+            checksum, product = packet.split(b"\x00", 1)
             checksum = Receiver.parseNumber(checksum)
             md5 = hashlib.md5()
             md5.update(product)
-            if checksum != int(md5.hexdigest(), 16):
+            parsing_check = int(md5.hexdigest(), 16)
+            if checksum != parsing_check:
+                print(f"Package checksum error: expected {checksum}, got {parsing_check}")
                 return None, None, None
             packet_raw = packet.split(b"\x00", 4)
             checksum, ack_id, send_id, length = map(Receiver.parseNumber, packet_raw[:4])
@@ -30,6 +32,7 @@ class Receiver(object):
             return ack_id, send_id, data
         except:
             # Package Error
+            print(f"Package checksum error: cannot decode")
             return None, None, None
 
     def receive(self):
