@@ -1,32 +1,13 @@
-import heapq
-import time
-from threading import Thread
-
 from USocket import UnreliableSocket
 
 
 class RDTSocket(UnreliableSocket):
-    """
-    The functions with which you are to build your RDT.
-    -   recvfrom(bufsize)->bytes, addr
-    -   sendto(bytes, address)
-    -   bind(address)
-
-    You can set the mode of the socket.
-    -   settimeout(timeout)
-    -   setblocking(flag)
-    By default, a socket is created in the blocking mode. 
-    https://docs.python.org/3/library/socket.html#socket-timeouts
-
-    """
 
     def __init__(self, rate=None, debug=True):
         super().__init__(rate=rate)
         self._rate = rate
         self._send_to = None
         self._recv_from = None
-        self.debug = debug
-        self.thread = RDTThread(self)
 
     def accept(self) -> ('RDTSocket', (str, int)):
         """
@@ -81,117 +62,3 @@ class RDTSocket(UnreliableSocket):
 
     def set_recv_from(self, recv_from):
         self._recv_from = recv_from
-
-
-class RDTThread(Thread):
-    def __init__(self, socket: UnreliableSocket):
-        super().__init__()
-        self.socket = socket
-        self.time_thread = RDTTimeThread()
-
-        self.ack_list = NetworkPriorityQueue()
-        self.pkg_list = NetworkPriorityQueue()
-
-        self.send_buffer = {}
-        self.recv_buffer = {}
-
-        self.max_ack = 0
-        self.max_pkg = 0
-        self.next_scooped_pkg = 0
-
-    def run(self):
-        pass
-
-    @staticmethod
-    def check(checksum, segment):
-        # TODO: check sum
-        return True
-
-    @staticmethod
-    def makeChecksum(segment):
-        # TODO: make checksum
-        return b'\x11' * 14 + b'\x00' + segment
-
-    def RDT_recv(self):
-        segment = self.socket.recvfrom(1400)
-
-        checksum, ack_id, pkg_id, length, data = segment.split(b'\x00', 4)
-
-        if self.check(checksum, segment):
-            # TODO: self.time_thread.remove_pkg(pkg_id)
-
-            # 1). pending to ack next package if the package is not re-transmitted
-            if pkg_id > self.max_ack:
-                self.max_ack += 1
-                self.ack_list.push(self.max_ack)
-
-            # 2). pending to send the ack-ed file
-            self.pkg_list.push(ack_id)
-
-        else:
-            # Drop the packet! Do not trust the segment.
-            pass
-
-        self.recv_buffer[pkg_id] = data
-
-    def RDT_send(self, addr):
-        ack_id = self.ack_list.pop()
-        pkg_id = self.pkg_list.pop()
-        data = self.send_buffer[pkg_id]
-        length = len(data)
-
-        data = self.makeChecksum(b'\x00'.join([ack_id, pkg_id, length, data]))
-        self.socket.sendto(data, addr)
-
-    def pend_data(self, data: bytes):
-        self.send_buffer[self.max_pkg] = data
-        self.pkg_list.append(self.max_pkg)
-        self.max_pkg += 1
-
-    def scoop_data(self):
-        # if recv_buffer has element in order
-        if self.next_scooped_pkg in self.recv_buffer:
-            data = self.recv_buffer[self.next_scooped_pkg]
-        else:
-            # TODO: Should block here or raise an error
-            raise Exception("Pkt has not been recv-ed yet.")
-        self.next_scooped_pkg += 1
-
-
-class RDTTimeThread(Thread):
-    def __init__(self, timeout=5):
-        super().__init__()
-        self.pkg_timeout = {}
-        self.timeout = timeout
-
-    def put_pkg(self, pkg_id):
-        self.pkg_timeout[pkg_id] = time.time()
-
-    def remove_pkg(self, pkg_id):
-        if pkg_id in self.pkg_timeout:
-            del self.pkg_timeout[pkg_id]
-        else:
-            raise Exception("What are you doing?")
-
-    def run(self):
-        # WRONG! while true doesn't work. While `while true`, we cannot delete anything from `pkg_timeout`.
-        while True:
-            for pkg_id, start_time in self.pkg_timeout.items():
-                if time.time() - start_time > self.timeout:
-                    # TODO: Queue require retransmit, set ack number
-                    pass
-            time.sleep(0.1)
-
-
-class NetworkPriorityQueue(object):
-    """
-    一个最小堆。ack_id 和 pkg_id 越小，优先级越高。
-    """
-    def __init__(self):
-        self.pq = []
-
-    def push(self, priority):
-        heapq.heappush(self.pq, priority)
-
-    def pop(self):
-        return heapq.heappop(self.pq)

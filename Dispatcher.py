@@ -1,7 +1,7 @@
 from time import time
 
-from .Controller import to_ack
-from .Receiver import Receiver
+from Controller import to_ack
+from Receiver import Receiver
 
 
 class Dispatcher(object):
