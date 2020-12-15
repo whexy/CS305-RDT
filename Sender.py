@@ -1,15 +1,17 @@
 import hashlib
+from queue import Empty
+from threading import Thread
 from typing import Dict
 
-from Controller import to_ack, to_send
 
-
-class Sender(object):
-    def __init__(self, socket):
+class Sender(Thread):
+    def __init__(self, socket, to_ack, to_send):
+        super().__init__()
         self.send_buffer: Dict[int, bytes] = {}
         self.socket = socket
-        # FIXME: This is a debug feature
-        self.addr = ("1.2.3.4", 53)
+        self.to_ack = to_ack
+        self.to_send = to_send
+        self.pkg_header = 1  # pkg_header 指向下一个可以填充数据的pkg_id。
 
     @staticmethod
     def packNumber(id: int) -> bytes:
@@ -29,9 +31,37 @@ class Sender(object):
         return Sender.packNumber(checksum) + b'\x00' + product
 
     def send(self):
-        ack_id = to_ack.get()
-        send_id = to_send.get()
-        data = self.send_buffer[send_id]
-        # TODO: 这里有一个问题，如果 send_id 不在 buffer 里？ 发空包？
+        try:
+            ack_id = self.to_ack.get_nowait()
+        except Empty:
+            ack_id = 0
+
+        try:
+            send_id = self.to_send.get_nowait()
+        except Empty:
+            send_id = 0
+
+        if ack_id == 0 and send_id == 0:
+            return
+
+        # FIXME: 调试
+        print(f"{id(self.socket)}: Sender 正在打包 请求{ack_id}， 发送{send_id}")
+
+        print(f"{id(self.socket)}: 目前的send_buffer长这样：{self.send_buffer}")
+
+        if send_id > 0:
+            if send_id in self.send_buffer:
+                data = self.send_buffer[send_id]
+            else:
+                # TODO: 这里有一个问题，如果 send_id 不在 buffer 里？ 发空包？
+                print(f"{id(self.socket)}: 似乎上游没有数据可以发。这种情况还没有优化，所以我发个空包先。")
+                data = bytes(0)
+        else:
+            data = bytes(0)
+
         packet = self.packing(ack_id, send_id, data)
-        self.socket.sendto(packet, self.addr)
+        self.socket.sendto(packet, self.socket._send_to)
+
+    def run(self):
+        while True:
+            self.send()

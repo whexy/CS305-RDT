@@ -1,15 +1,17 @@
 import hashlib
+import os
+from threading import Thread
 from typing import Dict
 
-from Controller import to_send
 
 
-class Receiver(object):
-    def __init__(self, socket):
+class Receiver(Thread):
+    def __init__(self, socket, to_ack, to_send):
+        super().__init__()
         self.recv_buffer: Dict[int, bytes] = {}
         self.socket = socket
-        # FIXME: This is a debug feature
-        self.addr = ("1.2.3.4", 53)
+        self.to_ack = to_ack
+        self.to_send = to_send
 
     @staticmethod
     def parseNumber(id: bytes) -> int:
@@ -36,13 +38,15 @@ class Receiver(object):
             return None, None, None
 
     def receive(self):
-        packet = self.socket.recvfrom(1440)
+        packet, addr = self.socket.recvfrom(1440)
         ack_id, send_id, data = self.parsing(packet)
+
+        print(f"{id(self.socket)}: Receiver 从 {addr} 收到一个包裹，内容是{data}")
 
         if ack_id is None:
             return
 
-        to_send.put(ack_id)
+        self.to_send.put(ack_id)
         self.recv_buffer[send_id] = data
         # TODO: 优化1: 对 send_id + 1 预请求
 
@@ -51,3 +55,7 @@ class Receiver(object):
             return self.recv_buffer[id]
         else:
             return None
+
+    def run(self):
+        while True:
+            self.receive()

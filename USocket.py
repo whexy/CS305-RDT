@@ -2,7 +2,7 @@ import time
 from socket import socket, AF_INET, SOCK_DGRAM, inet_aton, inet_ntoa
 
 sockets = {}
-network = ('', -1)
+network = ('127.0.0.1', 12345)
 
 
 def bytes_to_addr(bytes):
