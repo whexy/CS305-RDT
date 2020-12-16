@@ -48,11 +48,16 @@ class Server(ThreadingUDPServer):
 
         to = bytes_to_addr(data[:8])
         # print(client_address, to)
-        socket.sendto(addr_to_bytes(client_address) + data[8:], to)
+
+        to_send = data[8:]
+        if self.corrupt:
+            if random.random() < self.corrupt:
+                to_send = corrupt(to_send)
+        socket.sendto(addr_to_bytes(client_address) + to_send, to)
 
 
 server_address = ('127.0.0.1', 12345)
 
 if __name__ == '__main__':
-    with Server(server_address) as server:
+    with Server(server_address, corrupt=0.05) as server:
         server.serve_forever()

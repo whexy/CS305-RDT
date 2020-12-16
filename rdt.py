@@ -14,8 +14,6 @@ class RDTSocket(UnreliableSocket):
 
     def accept(self) -> ('RDTSocket', (str, int)):
         conn, addr = RDTSocket(self._rate), None
-        conn.set_send_to()
-        conn.set_recv_from()
         return conn, addr
 
     def connect(self, address: (str, int)):
@@ -31,6 +29,7 @@ class RDTSocket(UnreliableSocket):
 
     def close(self):
         super().close()
+        self.dispatcher.shutdown()
 
     def set_send_to(self, send_to):
         self._send_to = send_to

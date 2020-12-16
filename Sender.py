@@ -12,6 +12,7 @@ class Sender(Thread):
         self.to_ack = to_ack
         self.to_send = to_send
         self.pkg_header = 1  # pkg_header 指向下一个可以填充数据的pkg_id。
+        self.running = True
 
     @staticmethod
     def packNumber(id: int) -> bytes:
@@ -63,5 +64,9 @@ class Sender(Thread):
         self.socket.sendto(packet, self.socket._send_to)
 
     def run(self):
-        while True:
+        self.running = True
+        while self.running:
             self.send()
+
+    def stop(self):
+        self.running = False

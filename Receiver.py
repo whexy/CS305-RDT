@@ -10,6 +10,7 @@ class Receiver(Thread):
         self.socket = socket
         self.to_ack = to_ack
         self.to_send = to_send
+        self.running = True
 
     @staticmethod
     def parseNumber(id: bytes) -> int:
@@ -61,5 +62,9 @@ class Receiver(Thread):
             return None
 
     def run(self):
-        while True:
+        self.running = True
+        while self.running:
             self.receive()
+
+    def stop(self):
+        self.running = False

@@ -46,6 +46,7 @@ class Dispatcher(object):
         # 计算需要哪些包
         # FIXME: 现在只要求了下一个包, 改成按照 bufsize 算出来的值！
         cart = [self.recv_footer]
+        self.recv_footer += 1
 
         # 阻塞拿包
         for goods in cart:
@@ -57,3 +58,7 @@ class Dispatcher(object):
     def fill(self, data: bytes):
         self.sender.send_buffer[self.sender.pkg_header] = data
         self.sender.pkg_header += 1
+
+    def shutdown(self):
+        self.sender.stop()
+        self.receiver.stop()

@@ -1,4 +1,4 @@
-import threading
+from multiprocessing import Process
 from unittest import TestCase
 
 from Receiver import Receiver
@@ -43,15 +43,26 @@ class TestRDTSocket(TestCase):
             socket1.set_send_to(("127.0.0.1", 2345))
             socket1.set_recv_from(("127.0.0.1", 2345))
             socket1.send("Hello World".encode("utf-8"))
-            # print(socket1.recv(1024))
+            socket1.send(b"GoodBye")
+            print(socket1.recv(1024))
+            msg = socket1.recv(1024)
+            # if msg == b"GoodBye":
+            #     socket1.close()
 
         def start_socket2():
             socket2 = RDTSocket(rate=10)
             socket2.bind(("127.0.0.1", 2345))
             socket2.set_send_to(("127.0.0.1", 1234))
             socket2.set_recv_from(("127.0.0.1", 1234))
-            # socket2.send("Accross the great wall and we can reach every corner of the world.".encode("utf-8"))
+            socket2.send("Across the great wall and we can reach every corner of the world.".encode("utf-8"))
+            socket2.send(b"GoodBye")
             print(socket2.recv(3))
+            msg = socket2.recv(1024)
+            # if msg == b"GoodBye":
+            #     socket2.close()
 
-        threading.Thread(target=start_socket1).start()
-        threading.Thread(target=start_socket2).start()
+        p = Process(target=start_socket1)
+        p.start()
+
+        p = Process(target=start_socket2)
+        p.start()
