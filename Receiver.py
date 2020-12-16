@@ -3,9 +3,8 @@ from threading import Thread
 from typing import Dict
 
 
-class Receiver(Thread):
+class Receiver(object):
     def __init__(self, socket, to_ack, to_send):
-        super().__init__()
         self.recv_buffer: Dict[int, bytes] = {}
         self.socket = socket
         self.to_ack = to_ack
@@ -60,11 +59,3 @@ class Receiver(Thread):
             return self.recv_buffer[id]
         else:
             return None
-
-    def run(self):
-        self.running = True
-        while self.running:
-            self.receive()
-
-    def stop(self):
-        self.running = False

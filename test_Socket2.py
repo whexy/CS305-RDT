@@ -2,7 +2,7 @@ from rdt import RDTSocket
 
 
 def start_socket2():
-    socket2 = RDTSocket(rate=10)
+    socket2 = RDTSocket(rate=5)
     socket2.bind(("127.0.0.1", 2345))
     socket2.set_send_to(("127.0.0.1", 1234))
     socket2.set_recv_from(("127.0.0.1", 1234))

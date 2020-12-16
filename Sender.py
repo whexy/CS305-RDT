@@ -1,12 +1,10 @@
 import hashlib
 from queue import Empty
-from threading import Thread
 from typing import Dict
 
 
-class Sender(Thread):
+class Sender(object):
     def __init__(self, socket, to_ack, to_send):
-        super().__init__()
         self.send_buffer: Dict[int, bytes] = {}
         self.socket = socket
         self.to_ack = to_ack
@@ -62,11 +60,3 @@ class Sender(Thread):
 
         packet = self.packing(ack_id, send_id, data)
         self.socket.sendto(packet, self.socket._send_to)
-
-    def run(self):
-        self.running = True
-        while self.running:
-            self.send()
-
-    def stop(self):
-        self.running = False

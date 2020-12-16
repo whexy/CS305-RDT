@@ -1,26 +1,32 @@
+import threading
 from queue import PriorityQueue
 from time import time
 
 from Receiver import Receiver
 from Sender import Sender
 
+to_ack = PriorityQueue()
+to_send = PriorityQueue()
+
+
+def run(receiver: Receiver, sender: Sender):
+    while True:
+        receiver.receive()
+        sender.send()
+
 
 class Dispatcher(object):
     def __init__(self, socket, timeout=10):
-        to_ack = PriorityQueue()
-        to_send = PriorityQueue()
         self.socket = socket
         self.to_ack = to_ack
         self.to_send = to_send
         self.transmitted_pkt: int = 0
         self.timeout: int = timeout
         self.receiver = Receiver(socket, to_ack, to_send)
-        self.receiver.start()
         self.sender = Sender(socket, to_ack, to_send)
-        self.sender.start()
-
         self.scoop_buffer = bytes
         self.recv_footer = 1  # 指向尚未提供的最大 id （意味着小于 footer 的数据全部被上层捞走）
+        threading.Thread(target=run, args=(self.receiver, self.sender)).start()
 
     def scoop(self, bufsize: int):
         def scoop_pkg(pkg_id: int) -> bytes:
@@ -57,6 +63,7 @@ class Dispatcher(object):
 
     def fill(self, data: bytes):
         self.sender.send_buffer[self.sender.pkg_header] = data
+        self.to_send.put(self.sender.pkg_header)
         self.sender.pkg_header += 1
 
     def shutdown(self):
