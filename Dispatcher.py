@@ -1,4 +1,3 @@
-import threading
 from queue import PriorityQueue
 from time import time
 
@@ -8,8 +7,9 @@ from Sender import Sender
 to_ack = PriorityQueue()
 to_send = PriorityQueue()
 
+
 class Dispatcher(object):
-    def __init__(self, socket, timeout=10):
+    def __init__(self, socket, timeout=3):
         self.socket = socket
         self.to_ack = to_ack
         self.to_send = to_send
@@ -44,19 +44,20 @@ class Dispatcher(object):
         ans = bytes(0)
 
         # 计算需要哪些包
-        # FIXME: 现在只要求了下一个包, 改成按照 bufsize 算出来的值！
-        cart = [self.recv_footer]
-        self.recv_footer += 1
+        pkg_number = bufsize // 1400 + 1
+        cart = [x + self.recv_footer for x in range(pkg_number)]
+        self.recv_footer += pkg_number
 
         # 阻塞拿包
         for goods in cart:
             ans += scoop_pkg(goods)
 
-        print(f"{id(self.socket)}: 请求已经成功收到，内容是{ans}，耗时{time() - start}")
+        print(f"{id(self.socket)}: 请求已经成功收到，耗时{time() - start}")
         return ans
 
     def fill(self, data: bytes):
-        self.sender.send_buffer[self.sender.pkg_header] = data
-        self.to_send.put(self.sender.pkg_header)
-        self.sender.pkg_header += 1
-
+        data_splits = [data[i:i + 1400] for i in range(0, len(data), 1400)]
+        for pkg in data_splits:
+            self.sender.send_buffer[self.sender.pkg_header] = pkg
+            self.to_send.put(self.sender.pkg_header)
+            self.sender.pkg_header += 1

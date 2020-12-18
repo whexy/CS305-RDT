@@ -1,20 +1,22 @@
+import time
+
 from rdt import RDTSocket
 
 
 def start_socket2():
-    socket2 = RDTSocket(rate=5)
+    socket2 = RDTSocket(rate=None)
     socket2.bind(("127.0.0.1", 2345))
     socket2.set_send_to(("127.0.0.1", 1234))
     socket2.set_recv_from(("127.0.0.1", 1234))
+    start = time.time()
+    socket2.setblocking(True)
 
-    socket2.setblocking(False)
-    socket2.settimeout(1)
-    socket2.send("Across the great wall and we can reach every corner of the world.".encode("utf-8"))
-    socket2.send(b"GoodBye")
-    print(socket2.recv(3))
-    msg = socket2.recv(1024)
-    # if msg == b"GoodBye":
-    #     socket2.close()
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+    while True:
+        data = socket2.recv(1400)
+        socket2.send(data)
+        if data == bytes(0):
+            break
+    print(f"全部搞完了，用时{time.time() - start}")
+
 
 start_socket2()
