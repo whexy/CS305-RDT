@@ -31,7 +31,7 @@ class Server(ThreadingUDPServer):
         if this function returns False， the request will not be processed, i.e. is discarded.
         details: https://docs.python.org/3/library/socketserver.html
         """
-        if self.buffer < 10000:  # some finite buffer size (in bytes)
+        if self.buffer < 100000:  # some finite buffer size (in bytes)
             self.buffer += len(request[0])
             return True
         else:
@@ -73,5 +73,5 @@ class Server(ThreadingUDPServer):
 server_address = ('127.0.0.1', 12345)
 
 if __name__ == '__main__':
-    with Server(server_address, rate=10240 / 2) as server:
+    with Server(server_address, rate=None) as server:
         server.serve_forever()

@@ -4,21 +4,23 @@ from queue import Empty
 from threading import Thread
 from typing import Dict
 
+from utils import RDTlog
+
 
 class Sender(Thread):
-    def __init__(self, socket, to_ack, to_send):
+    def __init__(self, socket, to_ack, to_send, flying):
         super().__init__()
-        self.send_buffer: Dict[int, bytes] = {}
         self.socket = socket
         self.to_ack = to_ack
         self.to_send = to_send
-        self.pkg_header = 1  # pkg_header 指向下一个可以填充数据的pkg_id。
-        self.running = True
+        self.flying = flying
 
+        self.send_buffer: Dict[int, bytes] = {}
+
+        self.pkg_header = 1  # pkg_header 指向下一个可以填充数据的pkg_id。
         self.last_send_id = 0
         self.last_ack_id = 0
-
-        self.last_urged = time.time()
+        self.last_updated_time = 0
 
     @staticmethod
     def packNumber(id: int) -> bytes:
@@ -30,7 +32,8 @@ class Sender(Thread):
     @staticmethod
     def packing(ack_id: int, send_id: int, data: bytes) -> bytes:
         length = len(data)
-        pieces = [Sender.packNumber(ack_id), Sender.packNumber(send_id), Sender.packNumber(length), data]
+        pieces = [Sender.packNumber(ack_id), Sender.packNumber(
+            send_id), Sender.packNumber(length), data]
         product = b'\x00'.join(pieces)
         md5 = hashlib.md5()
         md5.update(product)
@@ -38,19 +41,11 @@ class Sender(Thread):
         return Sender.packNumber(checksum) + b'\x00' + product
 
     def send(self):
-
-        # FIXME: 实验功能 发催促包
-        if self.to_send.qsize() < 2:
-            if time.time() - self.last_urged > 10:
-                packet = self.packing(0, 0, b'gkd')
-                self.socket.sendto(packet, self.socket._send_to)
-                self.last_urged = time.time()
-
         try:
             ack_id = self.to_ack.get_nowait()
             while self.to_ack.qsize() > 3:
                 if ack_id == self.last_ack_id:
-                    print(f"忽略ack={ack_id}的重复请求")
+                    RDTlog(f"忽略ack={ack_id}的重复请求")
                     ack_id = self.to_send.get_nowait()
                 else:
                     self.last_ack_id = ack_id
@@ -62,7 +57,7 @@ class Sender(Thread):
             send_id = self.to_send.get_nowait()
             while self.to_send.qsize() > 3:
                 if send_id == self.last_send_id:
-                    print(f"忽略pkg={send_id}的重复请求")
+                    RDTlog(f"忽略pkg={send_id}的重复请求")
                     send_id = self.to_send.get_nowait()
                 else:
                     self.last_send_id = send_id
@@ -73,26 +68,24 @@ class Sender(Thread):
         if ack_id == 0 and send_id == 0:
             return
 
-        # FIXME: 调试
-        print(
-            f"{self.log_time()} Sender 正在打包 请求{ack_id}， 发送{send_id}")
         if send_id > 0:
-            if send_id in self.send_buffer:
-                data = self.send_buffer[send_id]
-            else:
-                data = bytes(0)
+            data = self.send_buffer[send_id]
         else:
             data = bytes(0)
 
         packet = self.packing(ack_id, send_id, data)
-        print(f"{self.log_time()} Sender 打包完成")
         self.socket.sendto(packet, self.socket._send_to)
-        print(f"{self.log_time()} Sender 已经发出")
-
-    def log_time(self):
-        return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+        self.flying[send_id] = time.time()
+        RDTlog(f"Sender 发送{send_id}， 回复{ack_id}")
 
     def run(self) -> None:
         while True:
-            time.sleep(0.05)
             self.send()
+            if time.time() - self.last_updated_time > 5:
+                for pkg_id, pkg_sent_time in self.flying.items():
+                    if pkg_id == 0:
+                        continue
+                    if time.time() - pkg_sent_time > 5:
+                        RDTlog(f"{pkg_id} 已超时", highlight=True)
+                        self.to_send.put(pkg_id)
+                self.last_updated_time = time.time()

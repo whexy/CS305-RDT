@@ -13,10 +13,7 @@ def start_socket2():
 
     while True:
         data = socket2.recv(1400)
-        socket2.send(data)
-        if data == bytes(0):
-            break
-    print(f"全部搞完了，用时{time.time() - start}")
+        print(data[-10:])
 
 
 start_socket2()

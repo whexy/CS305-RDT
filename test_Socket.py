@@ -13,14 +13,5 @@ def start_socket1():
         data = f.read()
     socket1.send(data)
 
-    ans = bytes(0)
-    while True:
-        pkg = socket1.recv(1400)
-        ans += pkg
-        if pkg == bytes(0):
-            break
-    print(ans[:10], ans[-10:], len(ans))
-    print(data[:10], data[-10:], len(data))
-
 
 start_socket1()
