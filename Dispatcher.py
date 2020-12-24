@@ -1,4 +1,5 @@
 import time
+import math
 from queue import PriorityQueue
 
 from Receiver import Receiver
@@ -27,7 +28,7 @@ class Dispatcher(object):
     def scoop(self, bufsize: int):
         start = time.time()
         ans = bytes(0)
-        cart = [x + self.recv_footer for x in range(bufsize // 1400 + 1)]
+        cart = [x + self.recv_footer for x in range(math.ceil(bufsize / 1400))]
         for pkg, goods in enumerate(cart):
             RDTlog(f"正在接受{goods}")
             data = None
@@ -47,6 +48,12 @@ class Dispatcher(object):
     def fill(self, data: bytes):
         data_splits = [data[i:i + 1400] for i in range(0, len(data), 1400)]
         for pkg in data_splits:
-            self.sender.send_buffer[self.sender.pkg_header] = pkg
             self.to_send.put(self.sender.pkg_header)
+            self.sender.send_buffer[self.sender.pkg_header] = pkg
             self.sender.pkg_header += 1
+
+    def shutdown(self):
+        self.sender.stop()
+        self.receiver.stop()
+        self.sender.join()
+        self.receiver.join()

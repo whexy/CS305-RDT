@@ -1,8 +1,10 @@
+import threading
 import time
 
 
 def RDTlog(msg: str, showtime=True, highlight=False):
     instant = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+    msg = f"{threading.get_ident()}: {msg}"
     if showtime:
         msg = '[' + instant + ']\t' + msg
     if highlight:

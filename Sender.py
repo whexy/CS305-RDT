@@ -22,6 +22,8 @@ class Sender(Thread):
         self.last_ack_id = 0
         self.last_updated_time = 0
 
+        self.is_running = True
+
     @staticmethod
     def packNumber(id: int) -> bytes:
         bits = bin(id)[2:]
@@ -79,8 +81,13 @@ class Sender(Thread):
         RDTlog(f"Sender 发送{send_id}， 回复{ack_id}")
 
     def run(self) -> None:
-        while True:
-            self.send()
+        RDTlog("发端线程启动")
+        while self.is_running:
+            try:
+                self.send()
+            except:
+                RDTlog("ERR")
+                continue
             if time.time() - self.last_updated_time > 5:
                 for pkg_id, pkg_sent_time in self.flying.items():
                     if pkg_id == 0:
@@ -89,3 +96,6 @@ class Sender(Thread):
                         RDTlog(f"{pkg_id} 已超时", highlight=True)
                         self.to_send.put(pkg_id)
                 self.last_updated_time = time.time()
+
+    def stop(self):
+        self.is_running = False

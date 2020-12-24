@@ -1,7 +1,7 @@
 import hashlib
 import time
 from threading import Thread
-from typing import Dict
+from typing import Dict, Tuple
 
 from utils import RDTlog
 
@@ -13,8 +13,11 @@ class Receiver(Thread):
         self.to_ack = to_ack
         self.to_send = to_send
         self.flying = flying
+        self.addr: Tuple[str, int] or None = None
 
         self.recv_buffer: Dict[int, bytes] = {}
+
+        self.is_running = True
 
     @staticmethod
     def parseNumber(id: bytes) -> int:
@@ -49,6 +52,15 @@ class Receiver(Thread):
         if ack_id is None or send_id is None:
             return
 
+        if self.addr is None:
+            if data in [b'SYN', b'SYNACK']:
+                self.addr = addr
+                self.socket.set_send_to(addr)
+            else:
+                return
+        elif self.addr != addr:
+            return
+
         if ack_id > 0:
             self.flying.pop(ack_id)
 
@@ -60,6 +72,7 @@ class Receiver(Thread):
             f"Receiver 从 {addr} 收到包裹{send_id}，"
             f"包裹内容是{data[:10]}… {f'对方回复{ack_id}' if ack_id > 0 else '对方无回复'}。"
         )
+        # RDTlog(f"tosend size: {self.to_send.qsize()}")
 
     def get_receive_packet(self, id):
         if id in self.recv_buffer:
@@ -68,5 +81,9 @@ class Receiver(Thread):
             return None
 
     def run(self) -> None:
-        while True:
+        RDTlog("收端线程启动")
+        while self.is_running:
             self.receive()
+
+    def stop(self):
+        self.is_running = False
