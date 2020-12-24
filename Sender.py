@@ -1,5 +1,6 @@
 import hashlib
 import time
+import traceback
 from queue import Empty
 from threading import Thread
 from typing import Dict
@@ -70,15 +71,21 @@ class Sender(Thread):
         if ack_id == 0 and send_id == 0:
             return
 
+        RDTlog(f"Sender准备 发送{send_id}， ack{ack_id}")
+
+
         if send_id > 0:
             data = self.send_buffer[send_id]
         else:
             data = bytes(0)
 
+
         packet = self.packing(ack_id, send_id, data)
         self.socket.sendto(packet, self.socket._send_to)
         self.flying[send_id] = time.time()
-        RDTlog(f"Sender 发送{send_id}， 回复{ack_id}")
+
+        RDTlog(f"Sender已经 发送{send_id}， ack{ack_id}")
+
 
     def run(self) -> None:
         RDTlog("发端线程启动")
@@ -87,6 +94,7 @@ class Sender(Thread):
                 self.send()
             except:
                 RDTlog("ERR")
+                traceback.print_exc()
                 continue
             if time.time() - self.last_updated_time > 5:
                 for pkg_id, pkg_sent_time in self.flying.items():

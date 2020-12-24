@@ -1,26 +1,23 @@
-import time
 import math
+import time
 from queue import PriorityQueue
 
 from Receiver import Receiver
 from Sender import Sender
 from utils import RDTlog
 
-to_ack = PriorityQueue()
-to_send = PriorityQueue()
-flying = {}
-
 
 class Dispatcher(object):
     def __init__(self, socket, timeout=3):
         self.socket = socket
-        self.to_ack = to_ack
-        self.to_send = to_send
+        self.to_ack = PriorityQueue()
+        self.to_send = PriorityQueue()
+        self.flying = {}
         self.transmitted_pkt: int = 0
         self.timeout: int = timeout
-        self.receiver = Receiver(socket, to_ack, to_send, flying)
+        self.receiver = Receiver(socket, self.to_ack, self.to_send, self.flying)
         self.receiver.start()
-        self.sender = Sender(socket, to_ack, to_send, flying)
+        self.sender = Sender(socket, self.to_ack, self.to_send, self.flying)
         self.sender.start()
         self.scoop_buffer = bytes
         self.recv_footer = 1  # 指向尚未提供的最大 id （意味着小于 footer 的数据全部被上层捞走）
