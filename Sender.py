@@ -1,4 +1,5 @@
 import hashlib
+import math
 import time
 import traceback
 from queue import Empty
@@ -9,11 +10,12 @@ from utils import RDTlog
 
 
 class Sender(Thread):
-    def __init__(self, socket, to_ack, to_send, flying, rate, timeout):
+    def __init__(self, socket, to_ack, to_send, acked, flying, rate, timeout):
         super().__init__()
         self.socket = socket
         self.to_ack = to_ack
         self.to_send = to_send
+        self.acked = acked
         self.flying = flying
         self.rate = rate
         self.timeout = timeout
@@ -50,7 +52,7 @@ class Sender(Thread):
             ack_id = self.to_ack.get_nowait()
             while self.to_ack.qsize() > 3:
                 if ack_id == self.last_ack_id:
-                    RDTlog(f"忽略ack={ack_id}的重复请求")
+                    RDTlog(f"忽略重复ack：{ack_id}")
                     ack_id = self.to_send.get_nowait()
                 else:
                     self.last_ack_id = ack_id
@@ -62,7 +64,7 @@ class Sender(Thread):
             send_id = self.to_send.get_nowait()
             while self.to_send.qsize() > 3:
                 if send_id == self.last_send_id:
-                    RDTlog(f"忽略pkg={send_id}的重复请求")
+                    RDTlog(f"忽略重复发送pkg={send_id}")
                     send_id = self.to_send.get_nowait()
                 else:
                     self.last_send_id = send_id
@@ -96,16 +98,21 @@ class Sender(Thread):
                 RDTlog("ERR")
                 traceback.print_exc()
                 continue
-            if time.time() - self.last_updated_time > self.timeout // 2:
+            if time.time() - self.last_updated_time > self.timeout[0] // 2:
                 updated = False
+                while not self.acked.empty():
+                    ack_id = self.acked.get_nowait()
+                    if ack_id in self.flying:
+                        self.flying.pop(ack_id)
                 for pkg_id, pkg_sent_time in self.flying.items():
                     if pkg_id == 0:
                         continue
-                    if time.time() - pkg_sent_time > self.timeout:
+                    if time.time() - pkg_sent_time > self.timeout[0]:
                         RDTlog(f"{pkg_id} 已超时", highlight=True)
                         self.to_send.put(pkg_id)
                         if not updated:
-                            self.rate[0] //= 2
+                            RDTlog(f"Rate={self.rate[0]}时减半", highlight=True)
+                            self.rate[0] = math.ceil(self.rate[0] / 2)
                             updated = True
                 self.last_updated_time = time.time()
 

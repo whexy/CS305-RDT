@@ -1,4 +1,5 @@
 import hashlib
+import time
 from threading import Thread
 from typing import Dict, Tuple
 
@@ -6,18 +7,21 @@ from utils import RDTlog
 
 
 class Receiver(Thread):
-    def __init__(self, socket, to_ack, to_send, flying, rate):
+    def __init__(self, socket, to_ack, to_send, acked, flying, rate, timeout):
         super().__init__()
         self.socket = socket
         self.to_ack = to_ack
         self.to_send = to_send
+        self.acked = acked
         self.flying = flying
         self.rate = rate
+        self.timeout = timeout
         self.addr: Tuple[str, int] or None = None
 
         self.recv_buffer: Dict[int, bytes] = {}
 
         self.is_running = True
+        self.alpha = 0.125
 
     @staticmethod
     def parseNumber(id: bytes) -> int:
@@ -63,7 +67,9 @@ class Receiver(Thread):
 
         if ack_id > 0:
             if ack_id in self.flying:
-                self.flying.pop(ack_id)
+                self.timeout[0] = (1 - self.alpha) * self.timeout[0] + self.alpha * (time.time() - self.flying[ack_id])
+                # self.flying.pop(ack_id)
+                self.acked.put(ack_id)
                 self.rate[0] += 5120
 
         if send_id > 0:

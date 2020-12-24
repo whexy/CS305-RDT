@@ -21,6 +21,8 @@ class Server(ThreadingUDPServer):
         self.buffer = 0
         self.delay = delay
         self.con_time = 0
+        self.start_time = None
+        self.throughput = 0
 
     def verify_request(self, request, client_address):
         """
@@ -31,6 +33,10 @@ class Server(ThreadingUDPServer):
         if this function returns False， the request will not be processed, i.e. is discarded.
         details: https://docs.python.org/3/library/socketserver.html
         """
+        if self.start_time is None:
+            self.start_time = time.time()
+        self.throughput += len(request[0])
+        print(f"累计穿过数据量：{self.throughput}，用时{time.time() - self.start_time}")
         if self.buffer < 30000:  # some finite buffer size (in bytes)
             self.buffer += len(request[0])
             return True

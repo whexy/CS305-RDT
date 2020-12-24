@@ -1,6 +1,6 @@
 import math
 import time
-from queue import PriorityQueue
+from queue import PriorityQueue, Queue
 
 from Receiver import Receiver
 from Sender import Sender
@@ -12,14 +12,15 @@ class Dispatcher(object):
         self.socket = socket
         self.to_ack = PriorityQueue()
         self.to_send = PriorityQueue()
+        self.acked = Queue()
         self.flying = {}
         self.transmitted_pkt: int = 0
-        self.timeout: int = timeout
+        self.timeout = [timeout]
         self.rate = [rate]
 
-        self.receiver = Receiver(socket, self.to_ack, self.to_send, self.flying, self.rate)
+        self.receiver = Receiver(socket, self.to_ack, self.to_send, self.acked, self.flying, self.rate, self.timeout)
         self.receiver.start()
-        self.sender = Sender(socket, self.to_ack, self.to_send, self.flying, self.rate, self.timeout)
+        self.sender = Sender(socket, self.to_ack, self.to_send, self.acked, self.flying, self.rate, self.timeout)
         self.sender.start()
         self.scoop_buffer = bytes
         self.recv_footer = 1  # 指向尚未提供的最大 id （意味着小于 footer 的数据全部被上层捞走）
