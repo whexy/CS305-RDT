@@ -12,13 +12,15 @@ footer: CS305 Computer Network Final Project
 # Design
 
 - Full duplex RDT protocol
-- Maintain multiple links simultaneously
+- Connection-oriented, with multiple links simultaneously
 
 ---
 
 # The Protocol: Full Duplex
 
-When we need to **acknowledge** a packet and **send** a packet at the same time. Pack them together, don't waste the buffer size.
+Most of the cases we need to acknowledge a packet and send a packet at the same time.
+
+Pack **ack** and **data packet** together, don't waste the buffer size.
 
 ---
 
@@ -47,13 +49,21 @@ When we need to **acknowledge** a packet and **send** a packet at the same time.
 
 A **reliable** checksum algorithm
 
-Hash function (散列算法), one-bit difference leads to huge difference in hash result.
+Hash function (散列算法), one-bit error leads to huge difference in hash result.
 
 We use MD5 (128bit), because it is very common and relatively fast.
 
 ---
 
+# Connection-oriented
 
+Handshaking.
+
+## multiple links simultaneously
+
+**Client** first communicate with a listener socket in **Server**. (request)
+
+**Server** allocates a new UDP socket with different port to establish the connection. (accept)
 
 ---
 

@@ -65,15 +65,7 @@ class RDTSocket(UnreliableSocket):
         self.dispatcher.fill(bytes)
 
     def close(self):
-        self.send(b'FIN')
-        pkt = self.recv(32)
-        while pkt != b'FINACK':
-            pkt = self.recv(32)
-        while pkt != b'FIN':
-            pkt = self.recv(32)
-        wait_start_time = time.time()
-        while time.time() - wait_start_time < self.dispatcher.timeout * 2:
-            pass
+        time.sleep(1000)
         super().close()
         self.dispatcher.shutdown()
 
