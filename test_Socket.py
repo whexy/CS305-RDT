@@ -12,7 +12,7 @@ def start_socket1():
 
     with open("Alice.txt", "rb") as f:
         data = f.read()
-    socket1.send(data)
+    socket1.send(data * 10)
 
 
 start_socket1()

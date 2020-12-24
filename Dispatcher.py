@@ -8,16 +8,18 @@ from utils import RDTlog
 
 
 class Dispatcher(object):
-    def __init__(self, socket, timeout=3):
+    def __init__(self, socket, timeout=3, rate=102400):
         self.socket = socket
         self.to_ack = PriorityQueue()
         self.to_send = PriorityQueue()
         self.flying = {}
         self.transmitted_pkt: int = 0
         self.timeout: int = timeout
-        self.receiver = Receiver(socket, self.to_ack, self.to_send, self.flying)
+        self.rate = [rate]
+
+        self.receiver = Receiver(socket, self.to_ack, self.to_send, self.flying, self.rate)
         self.receiver.start()
-        self.sender = Sender(socket, self.to_ack, self.to_send, self.flying)
+        self.sender = Sender(socket, self.to_ack, self.to_send, self.flying, self.rate, self.timeout)
         self.sender.start()
         self.scoop_buffer = bytes
         self.recv_footer = 1  # 指向尚未提供的最大 id （意味着小于 footer 的数据全部被上层捞走）

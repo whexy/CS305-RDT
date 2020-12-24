@@ -1,5 +1,4 @@
 import hashlib
-import time
 from threading import Thread
 from typing import Dict, Tuple
 
@@ -7,12 +6,13 @@ from utils import RDTlog
 
 
 class Receiver(Thread):
-    def __init__(self, socket, to_ack, to_send, flying):
+    def __init__(self, socket, to_ack, to_send, flying, rate):
         super().__init__()
         self.socket = socket
         self.to_ack = to_ack
         self.to_send = to_send
         self.flying = flying
+        self.rate = rate
         self.addr: Tuple[str, int] or None = None
 
         self.recv_buffer: Dict[int, bytes] = {}
@@ -62,7 +62,9 @@ class Receiver(Thread):
             return
 
         if ack_id > 0:
-            self.flying.pop(ack_id)
+            if ack_id in self.flying:
+                self.flying.pop(ack_id)
+                self.rate[0] += 5120
 
         if send_id > 0:
             self.recv_buffer[send_id] = data

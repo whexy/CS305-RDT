@@ -9,12 +9,14 @@ from utils import RDTlog
 
 
 class Sender(Thread):
-    def __init__(self, socket, to_ack, to_send, flying):
+    def __init__(self, socket, to_ack, to_send, flying, rate, timeout):
         super().__init__()
         self.socket = socket
         self.to_ack = to_ack
         self.to_send = to_send
         self.flying = flying
+        self.rate = rate
+        self.timeout = timeout
 
         self.send_buffer: Dict[int, bytes] = {}
 
@@ -73,19 +75,17 @@ class Sender(Thread):
 
         RDTlog(f"Sender准备 发送{send_id}， ack{ack_id}")
 
-
         if send_id > 0:
             data = self.send_buffer[send_id]
         else:
             data = bytes(0)
 
-
         packet = self.packing(ack_id, send_id, data)
+        time.sleep(len(packet) / self.rate[0])  # Congestion Control
         self.socket.sendto(packet, self.socket._send_to)
         self.flying[send_id] = time.time()
 
-        RDTlog(f"Sender已经 发送{send_id}， ack{ack_id}")
-
+        RDTlog(f"Sender已经 发送{send_id}，ack{ack_id}，当前速率{self.rate[0]} bytes per second")
 
     def run(self) -> None:
         RDTlog("发端线程启动")
@@ -96,13 +96,17 @@ class Sender(Thread):
                 RDTlog("ERR")
                 traceback.print_exc()
                 continue
-            if time.time() - self.last_updated_time > 5:
+            if time.time() - self.last_updated_time > self.timeout // 2:
+                updated = False
                 for pkg_id, pkg_sent_time in self.flying.items():
                     if pkg_id == 0:
                         continue
-                    if time.time() - pkg_sent_time > 5:
+                    if time.time() - pkg_sent_time > self.timeout:
                         RDTlog(f"{pkg_id} 已超时", highlight=True)
                         self.to_send.put(pkg_id)
+                        if not updated:
+                            self.rate[0] //= 2
+                            updated = True
                 self.last_updated_time = time.time()
 
     def stop(self):
