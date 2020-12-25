@@ -7,7 +7,7 @@ from utils import RDTlog
 
 
 class Receiver(Thread):
-    def __init__(self, socket, to_ack, to_send, acked, flying, rate, timeout):
+    def __init__(self, socket, to_ack, to_send, acked, flying, rate, timeout, fin_status):
         super().__init__()
         self.socket = socket
         self.to_ack = to_ack
@@ -16,6 +16,7 @@ class Receiver(Thread):
         self.flying = flying
         self.rate = rate
         self.timeout = timeout
+        self.fin_status = fin_status
         self.addr: Tuple[str, int] or None = None
 
         self.recv_buffer: Dict[int, bytes] = {}

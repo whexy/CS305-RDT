@@ -17,8 +17,9 @@ class Dispatcher(object):
         self.transmitted_pkt: int = 0
         self.timeout = [timeout]
         self.rate = [rate]
+        self.fin_status = [True]
 
-        self.receiver = Receiver(socket, self.to_ack, self.to_send, self.acked, self.flying, self.rate, self.timeout)
+        self.receiver = Receiver(socket, self.to_ack, self.to_send, self.acked, self.flying, self.rate, self.timeout, self.fin_status)
         self.receiver.start()
         self.sender = Sender(socket, self.to_ack, self.to_send, self.acked, self.flying, self.rate, self.timeout)
         self.sender.start()
