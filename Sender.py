@@ -53,7 +53,7 @@ class Sender(Thread):
             while self.to_ack.qsize() > 3:
                 if ack_id == self.last_ack_id:
                     RDTlog(f"忽略重复ack：{ack_id}")
-                    ack_id = self.to_send.get_nowait()
+                    ack_id = self.to_ack.get_nowait()
                 else:
                     self.last_ack_id = ack_id
                     break
@@ -85,9 +85,10 @@ class Sender(Thread):
         packet = self.packing(ack_id, send_id, data)
         time.sleep(len(packet) / self.rate[0])  # Congestion Control
         self.socket.sendto(packet, self.socket._send_to)
-        self.flying[send_id] = time.time()
+        if send_id > 0:
+            self.flying[send_id] = time.time()
 
-        RDTlog(f"Sender已经 发送{send_id}，ack{ack_id}，当前速率{self.rate[0]} bytes per second")
+        RDTlog(f"Sender已经 发送{send_id}，ack{ack_id}，内容{data[:10]}，当前速率{self.rate[0]} bytes per second")
 
     def run(self) -> None:
         RDTlog("发端线程启动")
@@ -97,7 +98,7 @@ class Sender(Thread):
             except:
                 RDTlog("ERR")
                 traceback.print_exc()
-                continue
+                break
             if time.time() - self.last_updated_time > self.timeout[0] // 2:
                 updated = False
                 while not self.acked.empty():

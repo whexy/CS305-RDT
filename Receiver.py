@@ -7,7 +7,7 @@ from utils import RDTlog
 
 
 class Receiver(Thread):
-    def __init__(self, socket, to_ack, to_send, acked, flying, rate, timeout, fin_status):
+    def __init__(self, socket, to_ack, to_send, acked, flying, rate, timeout, fin_status, destructor):
         super().__init__()
         self.socket = socket
         self.to_ack = to_ack
@@ -17,9 +17,11 @@ class Receiver(Thread):
         self.rate = rate
         self.timeout = timeout
         self.fin_status = fin_status
+        self.destructor = destructor
         self.addr: Tuple[str, int] or None = None
 
         self.recv_buffer: Dict[int, bytes] = {}
+        self.magic_set = set()
 
         self.is_running = True
         self.alpha = 0.125
@@ -49,22 +51,28 @@ class Receiver(Thread):
             RDTlog(f"Receiver 解包异常：Package checksum error: cannot decode", highlight=True)
             return None, None, None
 
-    def receive(self):
+    def receive(self) -> bool:
         packet, addr = self.socket.recvfrom(1440)
         ack_id, send_id, data = self.parsing(packet)
+        has_fin = False
 
         # 坏包
         if ack_id is None or send_id is None:
-            return
+            return False
 
         if self.addr is None:
             if data in [b'SYN', b'SYNACK']:
                 self.addr = addr
                 self.socket.set_send_to(addr)
             else:
-                return
+                return False
         elif self.addr != addr:
-            return
+            return False
+
+        if data == b'FIN':
+            self.fin_status[1] = True
+            if not self.fin_status[0]:
+                has_fin = True
 
         if ack_id > 0:
             if ack_id in self.flying:
@@ -74,7 +82,11 @@ class Receiver(Thread):
                 self.rate[0] += 5120
 
         if send_id > 0:
-            self.recv_buffer[send_id] = data
+            if data == b'FIN':
+                self.recv_buffer[send_id] = bytes(0)
+
+            else:
+                self.recv_buffer[send_id] = data
             self.to_ack.put(send_id)
 
             RDTlog(
@@ -88,6 +100,7 @@ class Receiver(Thread):
             )
 
         # RDTlog(f"tosend size: {self.to_send.qsize()}")
+        return has_fin
 
     def get_receive_packet(self, id):
         if id in self.recv_buffer:
@@ -97,8 +110,14 @@ class Receiver(Thread):
 
     def run(self) -> None:
         RDTlog("收端线程启动")
+        destructor_running = False
         while self.is_running:
-            self.receive()
+            if self.receive():  # Got FIN
+                RDTlog("发端收到FIN，准备启动关闭流程", highlight=True)
+                if not destructor_running:
+                    destructor_running = True
+                    RDTlog("发端即将启动关闭流程", highlight=True)
+                    self.destructor.start()
 
     def stop(self):
         self.is_running = False

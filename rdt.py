@@ -4,7 +4,9 @@ from Dispatcher import Dispatcher
 from USocket import UnreliableSocket
 from utils import RDTlog
 
-
+'''
+    Thread Oriented Independent Layers Elastic Transport (TOILET)
+'''
 class RDTSocket(UnreliableSocket):
 
     def __init__(self, rate=None):
@@ -29,6 +31,7 @@ class RDTSocket(UnreliableSocket):
         self.next_address = (self.next_address[0], self.next_address[1] + 1)
         conn.dispatcher.recv_footer = self.dispatcher.recv_footer
         self.dispatcher.recv_footer = 1
+        self.dispatcher.receiver.recv_buffer = {}
         conn.dispatcher.socket.set_send_to(addr)
         conn.dispatcher.socket.set_recv_from(addr)
         conn.dispatcher.receiver.addr = addr
@@ -65,10 +68,16 @@ class RDTSocket(UnreliableSocket):
         self.dispatcher.fill(bytes)
 
     def close(self):
-        pass
-        # time.sleep(1000)
+        if not self.dispatcher.fin_status[3]:
+            if self.dispatcher.fin_status[2]:
+                # Destructor is running
+                pass
+            else:
+                self.dispatcher.fin_status[0] = True
+                self.dispatcher.destructor.run()
+            while not self.dispatcher.fin_status[3]:
+                pass
         # super().close()
-        # self.dispatcher.shutdown()
 
     def set_send_to(self, send_to):
         self._send_to = send_to

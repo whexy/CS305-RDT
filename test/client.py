@@ -8,7 +8,7 @@ client.connect(('127.0.0.1', 9999))
 
 data_count = 0
 echo = b''
-count = 3
+count = 1
 
 with open('alice.txt', 'r') as f:
     data = f.read()
