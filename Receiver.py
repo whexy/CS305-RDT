@@ -76,10 +76,16 @@ class Receiver(Thread):
             self.recv_buffer[send_id] = data
             self.to_ack.put(send_id)
 
-        RDTlog(
-            f"Receiver 从 {addr} 收到包裹{send_id}，"
-            f"包裹内容是{data[:10]}… {f'对方回复{ack_id}' if ack_id > 0 else '对方无回复'}。"
-        )
+            RDTlog(
+                f"Receiver 从 {addr} 收到包裹{send_id}，"
+                f"包裹内容是{data[:10]}… {f'对方回复{ack_id}' if ack_id > 0 else '对方无回复'}。"
+            )
+
+        elif ack_id != 0:
+            RDTlog(
+                f"Receiver 从 {addr} 收到纯回复{ack_id}。"
+            )
+
         # RDTlog(f"tosend size: {self.to_send.qsize()}")
 
     def get_receive_packet(self, id):

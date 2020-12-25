@@ -29,8 +29,9 @@ class Dispatcher(object):
         start = time.time()
         ans = bytes(0)
         cart = [x + self.recv_footer for x in range(math.ceil(bufsize / 1400))]
+        RDTlog(f"开始捞数据，准备捞{cart}", highlight=True)
         for pkg, goods in enumerate(cart):
-            RDTlog(f"正在接受{goods}")
+            RDTlog(f"正在捞{goods}")
             data = None
             if pkg == 0:
                 while data is None:
@@ -38,11 +39,12 @@ class Dispatcher(object):
             else:
                 data = self.receiver.get_receive_packet(goods)
             if data is None:
+                RDTlog(f"{goods}没捞到，放弃")
                 break
             else:
                 ans += data
                 self.recv_footer += 1
-        RDTlog(f"请求已经成功收到，耗时{time.time() - start}")
+        RDTlog(f"捞完，耗时{time.time() - start}", highlight=True)
         return ans
 
     def fill(self, data: bytes):

@@ -65,9 +65,10 @@ class RDTSocket(UnreliableSocket):
         self.dispatcher.fill(bytes)
 
     def close(self):
-        time.sleep(1000)
-        super().close()
-        self.dispatcher.shutdown()
+        pass
+        # time.sleep(1000)
+        # super().close()
+        # self.dispatcher.shutdown()
 
     def set_send_to(self, send_to):
         self._send_to = send_to
