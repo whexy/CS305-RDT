@@ -8,7 +8,7 @@ client.connect(('127.0.0.1', 9999))
 
 data_count = 0
 echo = b''
-count = 1
+count = 5
 
 with open('alice.txt', 'r') as f:
     data = f.read()
@@ -33,6 +33,9 @@ make sure the following is reachable
 '''
 
 print(f'transmitted {data_count}bytes in {time.perf_counter() - start}s')
+
+data = data * count
+
 diff = Differ().compare(data.splitlines(keepends=True), echo.decode().splitlines(keepends=True))
 for line in diff:
     assert line.startswith('  ')

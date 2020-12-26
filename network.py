@@ -1,9 +1,7 @@
 import threading
 import time
-from socket import inet_aton, inet_ntoa
-from socketserver import ThreadingUDPServer
-
-lock = threading.Lock()
+from queue import Queue
+from socket import socket, AF_INET, SOCK_DGRAM, inet_aton, inet_ntoa
 
 
 def bytes_to_addr(bytes):
@@ -14,71 +12,40 @@ def addr_to_bytes(addr):
     return inet_aton(addr[0]) + addr[1].to_bytes(4, 'big')
 
 
-class Server(ThreadingUDPServer):
-    def __init__(self, addr, rate=None, delay=None):
-        super().__init__(addr, None)
-        self.rate = rate
+server_addr = ('127.0.0.1', 12345)
+
+
+class Worker(threading.Thread):
+    def __init__(self, rate=None):
+        super(Worker, self).__init__()
         self.buffer = 0
-        self.delay = delay
-        self.con_time = 0
-        self.start_time = None
-        self.throughput = 0
+        self.queue = Queue()
+        self.rate = rate
 
-    def verify_request(self, request, client_address):
-        """
-        request is a tuple (data, socket)
-        data is the received bytes object
-        socket is new socket created automatically to handle the request
-
-        if this function returns False， the request will not be processed, i.e. is discarded.
-        details: https://docs.python.org/3/library/socketserver.html
-        """
-        if self.start_time is None:
-            self.start_time = time.time()
-        self.throughput += len(request[0])
-        print(f"累计穿过数据量：{self.throughput}，用时{time.time() - self.start_time}")
-        if self.buffer < 30000:  # some finite buffer size (in bytes)
-            self.buffer += len(request[0])
-            return True
-        else:
-            self.con_time += 1
-            print(f"拥塞发生了{self.con_time}次")
-            return False
-
-    def finish_request(self, request, client_address):
-        data, socket = request
-
-        with lock:
+    def run(self):
+        while True:
+            data, to = self.queue.get()
             if self.rate:
-                time.sleep(len(data) / self.rate)
+                time.sleep(len(seg) / self.rate)
             self.buffer -= len(data)
-            """
-            blockingly process each request
-            you can add random loss/corrupt here
+            server.sendto(data, to)
 
-            for example:
-            if random.random() < loss_rate:
-                return 
-            for i in range(len(data)-1):
-                if random.random() < corrupt_rate:
-                    data[i] = data[:i] + (data[i]+1).to_bytes(1,'big) + data[i+1:]
-            """
-
-        """
-        this part is not blocking and is executed by multiple threads in parallel
-        you can add random delay here, this would change the order of arrival at the receiver side.
-
-        for example:
-        time.sleep(random.random())
-        """
-
-        to = bytes_to_addr(data[:8])
-        print(client_address, to, self.buffer)  # observe tht traffic
-        socket.sendto(addr_to_bytes(client_address) + data[8:], to)
-
-
-server_address = ('127.0.0.1', 12345)
 
 if __name__ == '__main__':
-    with Server(server_address, rate=10240) as server:
-        server.serve_forever()
+    server = socket(AF_INET, SOCK_DGRAM)
+    server.bind(server_addr)
+    worker = Worker(20480)
+    worker.start()
+    while True:
+        try:
+            seg, client_addr = server.recvfrom(4096)
+        except ConnectionResetError:
+            seg, client_addr = server.recvfrom(4096)
+        if worker.buffer > 48000:
+            print('discard')
+            continue
+
+        to = bytes_to_addr(seg[:8])
+        print(client_addr, to, worker.buffer)  # observe tht traffic
+        worker.buffer += len(seg)
+        worker.queue.put((addr_to_bytes(client_addr) + seg[8:], to))

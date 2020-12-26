@@ -66,9 +66,9 @@ class Sender(Thread):
             flying_min = min(self.flying.keys())
             if send_id > flying_min + self.wnd_size[0]:
                 self.to_send.put(send_id)
-                RDTlog(f"{flying_min} is still in air. Sender 由于机场流量限制，不予{send_id}起飞许可")
+                # RDTlog(f"{flying_min} is still in air. Sender 由于机场流量限制，不予{send_id}起飞许可")
                 self.last_send_id = last_last_send_id
-                return
+                send_id = 0
         #################
         try:
             ack_id = self.to_ack.get_nowait()
@@ -86,7 +86,7 @@ class Sender(Thread):
             return
 
         RDTlog(f"Sender准备 发送{send_id}， ack{ack_id}")
-        RDTlog(f"机场还有{self.to_send.qsize()}个包待起飞")
+        RDTlog(f"机场还有{self.to_send.qsize()}个包待起飞，目前窗口大小{self.wnd_size[0]}，目前时限{self.timeout[0]}")
 
         if send_id > 0:
             data = self.send_buffer[send_id]
