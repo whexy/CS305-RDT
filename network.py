@@ -37,7 +37,7 @@ class Server(ThreadingUDPServer):
             self.start_time = time.time()
         self.throughput += len(request[0])
         print(f"累计穿过数据量：{self.throughput}，用时{time.time() - self.start_time}")
-        if self.buffer < 100000:  # some finite buffer size (in bytes)
+        if self.buffer < 30000:  # some finite buffer size (in bytes)
             self.buffer += len(request[0])
             return True
         else:
@@ -80,5 +80,5 @@ class Server(ThreadingUDPServer):
 server_address = ('127.0.0.1', 12345)
 
 if __name__ == '__main__':
-    with Server(server_address, rate=None) as server:
+    with Server(server_address, rate=10240) as server:
         server.serve_forever()

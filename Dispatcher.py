@@ -9,24 +9,30 @@ from utils import RDTlog
 
 
 class Dispatcher(object):
-    def __init__(self, socket, timeout=3, rate=102400):
+    def __init__(self, socket, timeout=3):
         self.socket = socket
         self.to_ack = PriorityQueue()
         self.to_send = PriorityQueue()
         self.acked = Queue()
         self.flying = {}
         self.transmitted_pkt: int = 0
+
+        # Congestion Control Params
         self.timeout = [timeout]
-        self.rate = [rate]
+        self.wnd_size = [1]
+        self.ssthresh = [8]
 
         # if close is invoked, if FIN received, if destructor running, if destructor end
         self.fin_status = [False, False, False, False]
 
         self.destructor = Destructor(self.flying, self.to_send, self.to_ack, self, self.fin_status, self.timeout)
-        self.receiver = Receiver(socket, self.to_ack, self.to_send, self.acked, self.flying, self.rate, self.timeout,
+        self.receiver = Receiver(socket, self.to_ack, self.to_send, self.acked, self.flying, self.wnd_size,
+                                 self.ssthresh,
+                                 self.timeout,
                                  self.fin_status, self.destructor)
         self.receiver.start()
-        self.sender = Sender(socket, self.to_ack, self.to_send, self.acked, self.flying, self.rate, self.timeout)
+        self.sender = Sender(socket, self.to_ack, self.to_send, self.acked, self.flying, self.wnd_size, self.ssthresh,
+                             self.timeout)
         self.sender.start()
         self.recv_footer = 1  # 指向尚未提供的最大 id （意味着小于 footer 的数据全部被上层捞走）
 
@@ -61,7 +67,8 @@ class Dispatcher(object):
             self.sender.send_buffer[self.sender.pkg_header] = pkg
             self.sender.pkg_header += 1
         if data == b'FIN':
-            RDTlog(f"此时待发送包有：{[(pkg_id, pkg_data) for pkg_id, pkg_data in self.sender.send_buffer.items() if pkg_id >= self.sender.pkg_header - 1]}")
+            RDTlog(
+                f"此时待发送包有：{[(pkg_id, pkg_data) for pkg_id, pkg_data in self.sender.send_buffer.items() if pkg_id >= self.sender.pkg_header - 1]}")
         return self.sender.pkg_header - 1
 
     def shutdown(self):

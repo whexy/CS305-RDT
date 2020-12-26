@@ -7,15 +7,18 @@ from utils import RDTlog
 
 
 class Receiver(Thread):
-    def __init__(self, socket, to_ack, to_send, acked, flying, rate, timeout, fin_status, destructor):
+    def __init__(self, socket, to_ack, to_send, acked, flying, wnd_size, ssthresh, timeout, fin_status, destructor):
         super().__init__()
         self.socket = socket
         self.to_ack = to_ack
         self.to_send = to_send
         self.acked = acked
         self.flying = flying
-        self.rate = rate
+        self.wnd_size = wnd_size
+        self.ssthresh = ssthresh
         self.timeout = timeout
+        self.estimated_rtt = self.timeout[0]
+        self.dev_rtt = self.timeout[0]
         self.fin_status = fin_status
         self.destructor = destructor
         self.addr: Tuple[str, int] or None = None
@@ -25,6 +28,7 @@ class Receiver(Thread):
 
         self.is_running = True
         self.alpha = 0.125
+        self.beta = 0.25
 
     @staticmethod
     def parseNumber(id: bytes) -> int:
@@ -83,10 +87,17 @@ class Receiver(Thread):
 
         if ack_id > 0:
             if ack_id in self.flying:
-                self.timeout[0] = (1 - self.alpha) * self.timeout[0] + self.alpha * (time.time() - self.flying[ack_id])
-                # self.flying.pop(ack_id)
+                sample_rtt = time.time() - self.flying[ack_id]
+                self.dev_rtt = (1 - self.beta) * self.dev_rtt + self.beta * abs(sample_rtt - self.estimated_rtt)
+                self.estimated_rtt = (1 - self.alpha) * self.estimated_rtt + self.alpha * sample_rtt
+                self.timeout[0] = self.estimated_rtt + 4 * self.dev_rtt
                 self.acked.put(ack_id)
-                self.rate[0] += 5120
+
+                # Congestion Control
+                if self.wnd_size[0] <= self.ssthresh[0]:
+                    self.wnd_size[0] += 1
+                else:
+                    self.wnd_size[0] += 1 / self.wnd_size[0]
 
         if send_id > 0:
             if data == b'FIN':
@@ -127,7 +138,6 @@ class Receiver(Thread):
                     RDTlog("发端即将启动关闭流程", highlight=True)
                     self.destructor.start()
         RDTlog("收端线程关闭", highlight=True)
-
 
     def stop(self):
         self.is_running = False

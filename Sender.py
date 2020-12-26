@@ -1,5 +1,4 @@
 import hashlib
-import math
 import time
 import traceback
 from queue import Empty
@@ -10,14 +9,15 @@ from utils import RDTlog
 
 
 class Sender(Thread):
-    def __init__(self, socket, to_ack, to_send, acked, flying, rate, timeout):
+    def __init__(self, socket, to_ack, to_send, acked, flying, wnd_size, ssthresh, timeout):
         super().__init__()
         self.socket = socket
         self.to_ack = to_ack
         self.to_send = to_send
         self.acked = acked
         self.flying = flying
-        self.rate = rate
+        self.wnd_size = wnd_size
+        self.ssthresh = ssthresh
         self.timeout = timeout
 
         self.send_buffer: Dict[int, bytes] = {}
@@ -48,18 +48,8 @@ class Sender(Thread):
         return Sender.packNumber(checksum) + b'\x00' + product
 
     def send(self):
-        try:
-            ack_id = self.to_ack.get_nowait()
-            while self.to_ack.qsize() > 3:
-                if ack_id == self.last_ack_id:
-                    RDTlog(f"忽略重复ack：{ack_id}")
-                    ack_id = self.to_ack.get_nowait()
-                else:
-                    self.last_ack_id = ack_id
-                    break
-        except Empty:
-            ack_id = 0
-
+        ################
+        last_last_send_id = self.last_send_id
         try:
             send_id = self.to_send.get_nowait()
             while self.to_send.qsize() > 3:
@@ -72,10 +62,31 @@ class Sender(Thread):
         except Empty:
             send_id = 0
 
+        if self.flying and send_id > 0:
+            flying_min = min(self.flying.keys())
+            if send_id > flying_min + self.wnd_size[0]:
+                self.to_send.put(send_id)
+                RDTlog(f"{flying_min} is still in air. Sender 由于机场流量限制，不予{send_id}起飞许可")
+                self.last_send_id = last_last_send_id
+                return
+        #################
+        try:
+            ack_id = self.to_ack.get_nowait()
+            while self.to_ack.qsize() > 3:
+                if ack_id == self.last_ack_id:
+                    RDTlog(f"忽略重复ack：{ack_id}")
+                    ack_id = self.to_ack.get_nowait()
+                else:
+                    self.last_ack_id = ack_id
+                    break
+        except Empty:
+            ack_id = 0
+
         if ack_id == 0 and send_id == 0:
             return
 
         RDTlog(f"Sender准备 发送{send_id}， ack{ack_id}")
+        RDTlog(f"机场还有{self.to_send.qsize()}个包待起飞")
 
         if send_id > 0:
             data = self.send_buffer[send_id]
@@ -83,12 +94,12 @@ class Sender(Thread):
             data = bytes(0)
 
         packet = self.packing(ack_id, send_id, data)
-        time.sleep(len(packet) / self.rate[0])  # Congestion Control
+
         self.socket.sendto(packet, self.socket._send_to)
         if send_id > 0:
             self.flying[send_id] = time.time()
 
-        RDTlog(f"Sender已经 发送{send_id}，ack{ack_id}，内容{data[:10]}，当前速率{self.rate[0]} bytes per second")
+        RDTlog(f"Sender已经 发送{send_id}，ack{ack_id}，内容{data[:10]}")
 
     def run(self) -> None:
         RDTlog("发端线程启动")
@@ -112,9 +123,9 @@ class Sender(Thread):
                         RDTlog(f"{pkg_id} 已超时", highlight=True)
                         self.to_send.put(pkg_id)
                         if not updated:
-                            RDTlog(f"Rate={self.rate[0]}时减半", highlight=True)
-                            self.rate[0] = math.ceil(self.rate[0] / 2)
-                            updated = True
+                            self.ssthresh[0] = max(1, self.wnd_size[0] / 2)
+                            self.wnd_size[0] = 1
+                            # updated = True ??????
                 self.last_updated_time = time.time()
         RDTlog("发端线程关闭", highlight=True)
 
