@@ -52,7 +52,14 @@ class Receiver(Thread):
             return None, None, None
 
     def receive(self) -> bool:
-        packet, addr = self.socket.recvfrom(1440)
+        while True:
+            if not self.is_running:
+                return False
+            try:
+                packet, addr = self.socket.recvfrom(1440)
+                break
+            except:
+                pass
         ack_id, send_id, data = self.parsing(packet)
         has_fin = False
 
@@ -110,6 +117,7 @@ class Receiver(Thread):
 
     def run(self) -> None:
         RDTlog("收端线程启动")
+        self.socket.setblocking(False)
         destructor_running = False
         while self.is_running:
             if self.receive():  # Got FIN
@@ -118,6 +126,9 @@ class Receiver(Thread):
                     destructor_running = True
                     RDTlog("发端即将启动关闭流程", highlight=True)
                     self.destructor.start()
+        RDTlog("收端线程关闭", highlight=True)
+
 
     def stop(self):
         self.is_running = False
+        RDTlog("调用收端关闭接口", highlight=True)

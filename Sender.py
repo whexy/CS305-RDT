@@ -116,6 +116,7 @@ class Sender(Thread):
                             self.rate[0] = math.ceil(self.rate[0] / 2)
                             updated = True
                 self.last_updated_time = time.time()
+        RDTlog("发端线程关闭", highlight=True)
 
     def stop(self):
         self.is_running = False

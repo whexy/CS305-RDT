@@ -67,3 +67,4 @@ class Destructor(Thread):
         if not self.destroyed:
             self.destroyed = True
             self.destroy()
+        RDTlog("关闭线程关闭", highlight=True)
