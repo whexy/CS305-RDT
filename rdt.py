@@ -1,5 +1,3 @@
-import time
-
 from Dispatcher import Dispatcher
 from USocket import UnreliableSocket
 from utils import RDTlog
@@ -7,6 +5,8 @@ from utils import RDTlog
 '''
     Thread Oriented Independent Layers Elastic Transport (TOILET)
 '''
+
+
 class RDTSocket(UnreliableSocket):
 
     def __init__(self, rate=None):
@@ -57,7 +57,6 @@ class RDTSocket(UnreliableSocket):
             pkt = self.dispatcher.scoop(32)
         self.dispatcher.fill(b'SYNACKACK')
         RDTlog(f'发送SYNACKACK，通信建立完毕', highlight=True)
-
 
     def recv(self, bufsize: int) -> bytes:
         assert self._recv_from, "Connection not established yet. Use recvfrom instead."
