@@ -29,6 +29,8 @@ class Sender(Thread):
 
         self.is_running = True
 
+        self.pending = set()
+
     @staticmethod
     def packNumber(id: int) -> bytes:
         bits = bin(id)[2:]
@@ -52,13 +54,13 @@ class Sender(Thread):
         last_last_send_id = self.last_send_id
         try:
             send_id = self.to_send.get_nowait()
-            while self.to_send.qsize() > 3:
-                if send_id == self.last_send_id:
-                    RDTlog(f"忽略重复发送pkg={send_id}")
-                    send_id = self.to_send.get_nowait()
-                else:
-                    self.last_send_id = send_id
-                    break
+            # while self.to_send.qsize() > self.wnd_size[0]:
+            #     if send_id == self.last_send_id:
+            #         RDTlog(f"忽略重复发送pkg={send_id}，目前窗口大小{self.wnd_size[0]}，目前时限{self.timeout[0]}")
+            #         send_id = self.to_send.get_nowait()
+            #     else:
+            #         self.last_send_id = send_id
+            #         break
         except Empty:
             send_id = 0
 
@@ -99,6 +101,9 @@ class Sender(Thread):
         if send_id > 0:
             self.flying[send_id] = time.time()
 
+        if send_id in self.pending:
+            self.pending.remove(send_id)
+
         RDTlog(f"Sender已经 发送{send_id}，ack{ack_id}，内容{data[:10]}")
 
     def run(self) -> None:
@@ -121,11 +126,12 @@ class Sender(Thread):
                         continue
                     if time.time() - pkg_sent_time > self.timeout[0]:
                         RDTlog(f"{pkg_id} 已超时", highlight=True)
-                        self.to_send.put(pkg_id)
+                        if pkg_id not in self.pending:
+                            self.to_send.put(pkg_id)
+                            self.pending.add(pkg_id)
                         if not updated:
                             self.ssthresh[0] = max(1, self.wnd_size[0] / 2)
                             self.wnd_size[0] = 1
-                            # updated = True ??????
                 self.last_updated_time = time.time()
         RDTlog("发端线程关闭", highlight=True)
 
