@@ -5,7 +5,7 @@ from queue import PriorityQueue, Queue
 from Destructor import Destructor
 from Receiver import Receiver
 from Sender import Sender
-from utils import RDTlog
+from utils import RDTlog, RDTUtil
 
 
 class Dispatcher(object):
@@ -25,14 +25,15 @@ class Dispatcher(object):
         # if close is invoked, if FIN received, if destructor running, if destructor end
         self.fin_status = [False, False, False, False]
 
+        self.util = RDTUtil()
+        # self.util.start()
+
         self.destructor = Destructor(self.flying, self.to_send, self.to_ack, self, self.fin_status, self.timeout)
         self.receiver = Receiver(socket, self.to_ack, self.to_send, self.acked, self.flying, self.wnd_size,
-                                 self.ssthresh,
-                                 self.timeout,
-                                 self.fin_status, self.destructor)
+                                 self.ssthresh, self.timeout, self.fin_status, self.destructor, self.util)
         self.receiver.start()
         self.sender = Sender(socket, self.to_ack, self.to_send, self.acked, self.flying, self.wnd_size, self.ssthresh,
-                             self.timeout)
+                             self.timeout, self.util)
         self.sender.start()
         self.recv_footer = 1  # 指向尚未提供的最大 id （意味着小于 footer 的数据全部被上层捞走）
 

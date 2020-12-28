@@ -9,7 +9,7 @@ from utils import RDTlog
 
 
 class Sender(Thread):
-    def __init__(self, socket, to_ack, to_send, acked, flying, wnd_size, ssthresh, timeout):
+    def __init__(self, socket, to_ack, to_send, acked, flying, wnd_size, ssthresh, timeout, util):
         super().__init__()
         self.socket = socket
         self.to_ack = to_ack
@@ -26,6 +26,8 @@ class Sender(Thread):
         self.last_send_id = 0
         self.last_ack_id = 0
         self.last_updated_time = 0
+
+        self.util = util
 
         self.is_running = True
 
@@ -100,6 +102,7 @@ class Sender(Thread):
         self.socket.sendto(packet, self.socket._send_to)
         if send_id > 0:
             self.flying[send_id] = time.time()
+            self.util.update("flying", len(self.flying))
 
         if send_id in self.pending:
             self.pending.remove(send_id)
@@ -121,6 +124,7 @@ class Sender(Thread):
                     ack_id = self.acked.get_nowait()
                     if ack_id in self.flying:
                         self.flying.pop(ack_id)
+                self.util.update("flying", len(self.flying))
                 for pkg_id, pkg_sent_time in self.flying.items():
                     if pkg_id == 0:
                         continue
@@ -132,6 +136,8 @@ class Sender(Thread):
                         if not updated:
                             self.ssthresh[0] = max(1, self.wnd_size[0] / 2)
                             self.wnd_size[0] = 1
+                            self.util.update("wnd_size", 1)
+                            self.util.update("ssthresh", int(self.ssthresh[0]))
                 self.last_updated_time = time.time()
         RDTlog("发端线程关闭", highlight=True)
 

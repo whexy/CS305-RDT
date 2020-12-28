@@ -4,6 +4,7 @@ from difflib import Differ
 from rdt import RDTSocket
 
 client = RDTSocket()
+client.dispatcher.util.start()
 client.connect(('127.0.0.1', 9999))
 
 data_count = 0

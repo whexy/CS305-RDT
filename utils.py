@@ -7,20 +7,19 @@ from threading import Thread
 
 import websockets
 
+port = 9988
 
 class RDTUtil(Thread):
     def __init__(self):
         super().__init__()
         self.data = {
-            "pkg_count": 1,
-            "timeout": 1,
-            "flying": 1,
-            "congestion": 10,
-            "wnd_size": 20,
-            "ssthresh": 1
+            "timeout": 5,
+            "flying": 0,
+            "wnd_size": 1,
+            "ssthresh": 8
         }
 
-        self.startTime = time.time()
+        self.startTime = None
 
         self.is_running = False
 
@@ -31,7 +30,9 @@ class RDTUtil(Thread):
                 await websocket.send(json.dumps(self.data))
             await asyncio.sleep(1)
 
-    def RDTUpdate(self, key, value):
+    def update(self, key, value):
+        if self.startTime is None:
+            self.startTime = time.time()
         self.is_running = True
         self.data[key] = value
 

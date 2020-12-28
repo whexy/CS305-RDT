@@ -3,8 +3,6 @@ import time
 from queue import Queue
 from socket import socket, AF_INET, SOCK_DGRAM, inet_aton, inet_ntoa
 
-from utils import RDTUtil
-
 
 def bytes_to_addr(bytes):
     return inet_ntoa(bytes[:4]), int.from_bytes(bytes[4:8], 'big')
@@ -35,8 +33,6 @@ class Worker(threading.Thread):
 
 if __name__ == '__main__':
     congestion_counter = 0
-    util = RDTUtil()
-    util.start()
     server = socket(AF_INET, SOCK_DGRAM)
     server.bind(server_addr)
     worker = Worker(20480)
@@ -48,7 +44,6 @@ if __name__ == '__main__':
             seg, client_addr = server.recvfrom(4096)
         if worker.buffer > 10000:
             congestion_counter += 1
-            util.RDTUpdate("congestion", congestion_counter)
             print("Congestion Happened")
             continue
 

@@ -7,7 +7,8 @@ from utils import RDTlog
 
 
 class Receiver(Thread):
-    def __init__(self, socket, to_ack, to_send, acked, flying, wnd_size, ssthresh, timeout, fin_status, destructor):
+    def __init__(self, socket, to_ack, to_send, acked, flying, wnd_size, ssthresh, timeout, fin_status, destructor,
+                 util):
         super().__init__()
         self.socket = socket
         self.to_ack = to_ack
@@ -22,6 +23,8 @@ class Receiver(Thread):
         self.fin_status = fin_status
         self.destructor = destructor
         self.addr: Tuple[str, int] or None = None
+
+        self.util = util
 
         self.recv_buffer: Dict[int, bytes] = {}
         self.magic_set = set()
@@ -91,6 +94,7 @@ class Receiver(Thread):
                 self.dev_rtt = (1 - self.beta) * self.dev_rtt + self.beta * abs(sample_rtt - self.estimated_rtt)
                 self.estimated_rtt = (1 - self.alpha) * self.estimated_rtt + self.alpha * sample_rtt
                 self.timeout[0] = self.estimated_rtt + 4 * self.dev_rtt
+                self.util.update("timeout", self.timeout)
                 self.acked.put(ack_id)
 
                 # Congestion Control
@@ -98,6 +102,7 @@ class Receiver(Thread):
                     self.wnd_size[0] += 1
                 else:
                     self.wnd_size[0] += 1 / self.wnd_size[0]
+                self.util.update("wnd_size", int(self.wnd_size[0]))
 
         if send_id > 0:
             if data == b'FIN':
