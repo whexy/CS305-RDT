@@ -40,3 +40,5 @@ data = data * count
 diff = Differ().compare(data.splitlines(keepends=True), echo.decode().splitlines(keepends=True))
 for line in diff:
     assert line.startswith('  ')
+
+client.dispatcher.util.is_running = False

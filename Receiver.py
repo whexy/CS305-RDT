@@ -94,7 +94,7 @@ class Receiver(Thread):
                 self.dev_rtt = (1 - self.beta) * self.dev_rtt + self.beta * abs(sample_rtt - self.estimated_rtt)
                 self.estimated_rtt = (1 - self.alpha) * self.estimated_rtt + self.alpha * sample_rtt
                 self.timeout[0] = self.estimated_rtt + 4 * self.dev_rtt
-                self.util.update("timeout", self.timeout)
+                self.util.update("timeout", self.timeout[0])
                 self.acked.put(ack_id)
 
                 # Congestion Control

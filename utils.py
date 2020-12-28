@@ -9,6 +9,7 @@ import websockets
 
 port = 9988
 
+
 class RDTUtil(Thread):
     def __init__(self):
         super().__init__()
@@ -20,23 +21,21 @@ class RDTUtil(Thread):
         }
 
         self.startTime = None
-
         self.is_running = False
 
     async def hello(self, websocket, path):
-        while True:
-            if self.is_running:
-                self.data["time"] = math.ceil(time.time() - self.startTime)
-                await websocket.send(json.dumps(self.data))
+        while self.is_running:
+            self.data["time"] = math.ceil(time.time() - self.startTime)
+            await websocket.send(json.dumps(self.data))
             await asyncio.sleep(1)
 
     def update(self, key, value):
         if self.startTime is None:
             self.startTime = time.time()
-        self.is_running = True
         self.data[key] = value
 
     def run(self):
+        self.is_running = True
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         start_server = websockets.serve(self.hello, "localhost", 8765, loop=loop)
